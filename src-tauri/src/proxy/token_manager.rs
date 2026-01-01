@@ -85,7 +85,7 @@ impl TokenManager {
                     // 跳过无效账号
                 },
                 Err(e) => {
-                    tracing::warn!("加载账号失败 {:?}: {}", path, e);
+                    tracing::debug!("加载账号失败 {:?}: {}", path, e);
                 }
             }
         }
@@ -106,8 +106,22 @@ impl TokenManager {
             .and_then(|v| v.as_bool())
             .unwrap_or(false)
         {
-            tracing::warn!(
+            tracing::debug!(
                 "Skipping disabled account file: {:?} (email={})",
+                path,
+                account.get("email").and_then(|v| v.as_str()).unwrap_or("<unknown>")
+            );
+            return Ok(None);
+        }
+
+        // 检查主动禁用状态
+        if account
+            .get("proxy_disabled")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
+            tracing::debug!(
+                "Skipping proxy-disabled account file: {:?} (email={})",
                 path,
                 account.get("email").and_then(|v| v.as_str()).unwrap_or("<unknown>")
             );
@@ -215,7 +229,7 @@ impl TokenManager {
                             
                             // 等待后若账号可用，优先复用
                             if let Some(found) = tokens_snapshot.iter().find(|t| t.account_id == bound_id) {
-                                tracing::info!("Sticky Session: Successfully recovered and reusing bound account {} for session {}", found.email, sid);
+                                tracing::debug!("Sticky Session: Successfully recovered and reusing bound account {} for session {}", found.email, sid);
                                 target_token = Some(found.clone());
                             }
                         } else {
@@ -226,7 +240,7 @@ impl TokenManager {
                     } else if !attempted.contains(&bound_id) {
                         // 3. 账号可用且未被标记为尝试失败，优先复用
                         if let Some(found) = tokens_snapshot.iter().find(|t| t.account_id == bound_id) {
-                            tracing::info!("Sticky Session: Successfully reusing bound account {} for session {}", found.email, sid);
+                            tracing::debug!("Sticky Session: Successfully reusing bound account {} for session {}", found.email, sid);
                             target_token = Some(found.clone());
                         }
                     }
@@ -241,7 +255,7 @@ impl TokenManager {
                 if let Some((account_id, last_time)) = &*last_used {
                     if last_time.elapsed().as_secs() < 60 && !attempted.contains(account_id) {
                         if let Some(found) = tokens_snapshot.iter().find(|t| &t.account_id == account_id) {
-                            tracing::info!("60s Window: Force reusing last account: {}", found.email);
+                            tracing::debug!("60s Window: Force reusing last account: {}", found.email);
                             target_token = Some(found.clone());
                         }
                     }
@@ -269,7 +283,7 @@ impl TokenManager {
                         if let Some(sid) = session_id {
                             if scheduling.mode != SchedulingMode::PerformanceFirst {
                                 self.session_accounts.insert(sid.to_string(), candidate.account_id.clone());
-                                tracing::info!("Sticky Session: Bound new account {} to session {}", candidate.email, sid);
+                                tracing::debug!("Sticky Session: Bound new account {} to session {}", candidate.email, sid);
                             }
                         }
                         break;
@@ -293,7 +307,7 @@ impl TokenManager {
                     target_token = Some(candidate.clone());
                     
                     if rotate {
-                        tracing::info!("Force Rotation: Switched to account: {}", candidate.email);
+                        tracing::debug!("Force Rotation: Switched to account: {}", candidate.email);
                     }
                     break;
                 }
@@ -316,12 +330,12 @@ impl TokenManager {
             // 3. 检查 token 是否过期（提前5分钟刷新）
             let now = chrono::Utc::now().timestamp();
             if now >= token.timestamp - 300 {
-                tracing::info!("账号 {} 的 token 即将过期，正在刷新...", token.email);
+                tracing::debug!("账号 {} 的 token 即将过期，正在刷新...", token.email);
 
                 // 调用 OAuth 刷新 token
                 match crate::modules::oauth::refresh_access_token(&token.refresh_token).await {
                     Ok(token_response) => {
-                        tracing::info!("Token 刷新成功！");
+                        tracing::debug!("Token 刷新成功！");
 
                         // 更新本地内存对象供后续使用
                         token.access_token = token_response.access_token.clone();
@@ -337,7 +351,7 @@ impl TokenManager {
 
                         // 同步落盘（避免重启后继续使用过期 timestamp 导致频繁刷新）
                         if let Err(e) = self.save_refreshed_token(&token.account_id, &token_response).await {
-                            tracing::warn!("保存刷新后的 token 失败 ({}): {}", token.email, e);
+                            tracing::debug!("保存刷新后的 token 失败 ({}): {}", token.email, e);
                         }
                     }
                     Err(e) => {
@@ -372,7 +386,7 @@ impl TokenManager {
             let project_id = if let Some(pid) = &token.project_id {
                 pid.clone()
             } else {
-                tracing::info!("账号 {} 缺少 project_id，尝试获取...", token.email);
+                tracing::debug!("账号 {} 缺少 project_id，尝试获取...", token.email);
                 match crate::proxy::project_resolver::fetch_project_id(&token.access_token).await {
                     Ok(pid) => {
                         if let Some(mut entry) = self.tokens.get_mut(&token.account_id) {
@@ -445,7 +459,7 @@ impl TokenManager {
         std::fs::write(path, serde_json::to_string_pretty(&content).unwrap())
             .map_err(|e| format!("写入文件失败: {}", e))?;
         
-        tracing::info!("已保存 project_id 到账号 {}", account_id);
+        tracing::debug!("已保存 project_id 到账号 {}", account_id);
         Ok(())
     }
     
@@ -469,7 +483,7 @@ impl TokenManager {
         std::fs::write(path, serde_json::to_string_pretty(&content).unwrap())
             .map_err(|e| format!("写入文件失败: {}", e))?;
         
-        tracing::info!("已保存刷新后的 token 到账号 {}", account_id);
+        tracing::debug!("已保存刷新后的 token 到账号 {}", account_id);
         Ok(())
     }
     
@@ -529,7 +543,7 @@ impl TokenManager {
     pub async fn update_sticky_config(&self, new_config: StickySessionConfig) {
         let mut config = self.sticky_config.write().await;
         *config = new_config;
-        tracing::info!("Scheduling configuration updated: {:?}", *config);
+        tracing::debug!("Scheduling configuration updated: {:?}", *config);
     }
 
     /// 清除特定会话的粘性映射

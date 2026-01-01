@@ -79,7 +79,7 @@ impl RateLimitTracker {
             },
             None => {
                 if status == 429 {
-                    tracing::warn!("无法解析 429 限流时间, 使用默认值 60秒");
+                    tracing::debug!("无法解析 429 限流时间, 使用默认值 60秒");
                     60
                 } else {
                     // 对于 5xx 错误，执行“软避让”：默认锁定 20 秒，强制切换账号
@@ -235,7 +235,7 @@ impl RateLimitTracker {
         });
         
         if count > 0 {
-            tracing::info!("清除了 {} 个过期的限流记录", count);
+            tracing::debug!("清除了 {} 个过期的限流记录", count);
         }
         
         count
@@ -252,7 +252,7 @@ impl RateLimitTracker {
     pub fn clear_all(&self) {
         let count = self.limits.len();
         self.limits.clear();
-        tracing::info!("清除了所有 {} 条限流记录", count);
+        tracing::debug!("清除了所有 {} 条限流记录", count);
     }
 }
 

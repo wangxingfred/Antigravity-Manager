@@ -169,7 +169,7 @@
         "tabs": {
             "general": "General",
             "account": "Account",
-            "proxy": "Proxy",
+            "proxy": "Proxy Settings",
             "advanced": "Advanced",
             "about": "About"
         },
@@ -193,6 +193,9 @@
             "auto_sync": "Auto Sync Current Account",
             "auto_sync_desc": "Automatically sync current active account information periodically",
             "sync_interval": "Sync Interval (seconds)"
+        },
+        "proxy": {
+            "title": "Proxy Settings"
         },
         "advanced": {
             "title": "Advanced Settings",
@@ -226,7 +229,8 @@
             "author": "Author",
             "wechat": "WeChat",
             "github": "GitHub",
-            "copyright": "Copyright © 2025 Antigravity. All rights reserved.",
+            "view_code": "View Code",
+            "copyright": "Copyright © 2025-2026 Antigravity. All rights reserved.",
             "check_update": "Check for Updates",
             "checking_update": "Checking...",
             "latest_version": "You're up to date",
@@ -392,7 +396,13 @@
         },
         "dialog": {
             "confirm_regenerate": "Are you sure to regenerate API Key? The old key will be invalid immediately.",
-            "operate_failed": "Operation failed: {{error}}"
+            "operate_failed": "Operation failed: {{error}}",
+            "reset_mapping_title": "Reset Model Mapping",
+            "reset_mapping_msg": "Are you sure you want to reset all model mappings to system defaults? This action cannot be undone.",
+            "regenerate_key_title": "Regenerate API Key",
+            "regenerate_key_msg": "Are you sure you want to regenerate the API Key? The old key will be invalidated immediately.",
+            "clear_bindings_title": "Clear Session Bindings",
+            "clear_bindings_msg": "Are you sure you want to clear all session-account bindings?"
         },
         "model": {
             "flash": "Fast Response",

@@ -412,7 +412,7 @@ fn build_contents(
                             "thought": true
                         }),
                     );
-                    tracing::warn!("First part of model message at {} is not a valid thought block. Prepending dummy.", contents.len());
+                    tracing::debug!("First part of model message at {} is not a valid thought block. Prepending dummy.", contents.len());
                 } else {
                     // 确保首项包含了 thought: true (防止只有 signature 的情况)
                     if let Some(p0) = parts.get_mut(0) {

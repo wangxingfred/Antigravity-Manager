@@ -264,7 +264,7 @@ pub async fn update_model_mapping(
     // 后续可以根据需要让 resolve_model_route 直接读取全量 config)
     if let Some(instance) = instance_lock.as_ref() {
         instance.axum_server.update_mapping(&config).await;
-        tracing::info!("后端服务已接收全量模型映射配置");
+        tracing::debug!("后端服务已接收全量模型映射配置");
     }
     
     // 2. 无论是否运行，都保存到全局配置持久化

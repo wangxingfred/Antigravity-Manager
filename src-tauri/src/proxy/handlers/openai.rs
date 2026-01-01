@@ -2,7 +2,7 @@
 use axum::{extract::Json, extract::State, http::StatusCode, response::IntoResponse};
 use base64::Engine as _;
 use serde_json::{json, Value};
-use tracing::{debug, error}; // Import Engine trait for encode method
+use tracing::{debug, error, info}; // Import Engine trait for encode method
 
 use crate::proxy::mappers::openai::{
     transform_openai_request, transform_openai_response, OpenAIRequest,
@@ -22,7 +22,7 @@ pub async fn handle_chat_completions(
 
     // Safety: Ensure messages is not empty
     if openai_req.messages.is_empty() {
-        tracing::warn!("Received request with empty messages, injecting fallback...");
+        debug!("Received request with empty messages, injecting fallback...");
         openai_req
             .messages
             .push(crate::proxy::mappers::openai::OpenAIMessage {
@@ -83,18 +83,14 @@ pub async fn handle_chat_completions(
             }
         };
 
-        tracing::info!(
-            "Using account: {} for request (type: {})",
-            email,
-            config.request_type
-        );
+        info!("✓ Using account: {} (type: {})", email, config.request_type);
 
         // 4. 转换请求
         let gemini_body = transform_openai_request(&openai_req, &project_id, &mapped_model);
 
         // [New] 打印转换后的报文 (Gemini Body) 供调试
         if let Ok(body_json) = serde_json::to_string_pretty(&gemini_body) {
-            tracing::info!("[OpenAI-Request] Transformed Gemini Body:\n{}", body_json);
+            debug!("[OpenAI-Request] Transformed Gemini Body:\n{}", body_json);
         }
 
         // 5. 发送请求
@@ -113,7 +109,7 @@ pub async fn handle_chat_completions(
             Ok(r) => r,
             Err(e) => {
                 last_error = e.clone();
-                tracing::warn!(
+                debug!(
                     "OpenAI Request failed on attempt {}/{}: {}",
                     attempt + 1,
                     max_attempts,
@@ -243,7 +239,7 @@ pub async fn handle_completions(
     State(state): State<AppState>,
     Json(mut body): Json<Value>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    tracing::info!(
+    info!(
         "Received /v1/completions or /v1/responses payload: {:?}",
         body
     );
@@ -325,7 +321,7 @@ pub async fn handle_completions(
                                             "type": "image_url",
                                             "image_url": { "url": image_url }
                                         }));
-                                        tracing::info!("[Codex] Found input_image: {}", image_url);
+                                        debug!("[Codex] Found input_image: {}", image_url);
                                     }
                                 }
                                 // [NEW] 兼容标准 OpenAI image_url 格式
@@ -551,17 +547,13 @@ pub async fn handle_completions(
                 }
             };
 
-        tracing::info!(
-            "Using account: {} for completions request (type: {})",
-            email,
-            config.request_type
-        );
+        info!("✓ Using account: {} (type: {})", email, config.request_type);
 
         let gemini_body = transform_openai_request(&openai_req, &project_id, &mapped_model);
 
         // [New] 打印转换后的报文 (Gemini Body) 供调试 (Codex 路径)
         if let Ok(body_json) = serde_json::to_string_pretty(&gemini_body) {
-            tracing::info!("[Codex-Request] Transformed Gemini Body:\n{}", body_json);
+            debug!("[Codex-Request] Transformed Gemini Body:\n{}", body_json);
         }
 
         let list_response = openai_req.stream;
@@ -721,7 +713,7 @@ pub async fn handle_images_generations(
         .and_then(|v| v.as_str())
         .unwrap_or("vivid");
 
-    tracing::info!(
+    info!(
         "[Images] Received request: model={}, prompt={:.50}..., n={}, size={}, quality={}, style={}",
         model,
         prompt,
@@ -733,6 +725,7 @@ pub async fn handle_images_generations(
 
     // 2. 解析尺寸为宽高比
     let aspect_ratio = match size {
+        "1792x768" | "2560x1080" => "21:9", // Ultra-wide
         "1792x1024" | "1920x1080" => "16:9",
         "1024x1792" | "1080x1920" => "9:16",
         "1024x768" | "1280x960" => "4:3",
@@ -766,7 +759,7 @@ pub async fn handle_images_generations(
         }
     };
 
-    tracing::info!("[Images] Using account: {} for image generation", email);
+    info!("✓ Using account: {} for image generation", email);
 
     // 4. 并发发送请求 (解决 candidateCount > 1 不支持的问题)
     let mut tasks = Vec::new();

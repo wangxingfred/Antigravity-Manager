@@ -1,7 +1,7 @@
 // Gemini Handler
 use axum::{extract::State, extract::{Json, Path}, http::StatusCode, response::IntoResponse};
 use serde_json::{json, Value};
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 use crate::proxy::mappers::gemini::{wrap_request, unwrap_response};
 use crate::proxy::server::AppState;
@@ -74,7 +74,7 @@ pub async fn handle_generate(
             }
         };
 
-        tracing::info!("Using account: {} for request (type: {})", email, config.request_type);
+        info!("✓ Using account: {} (type: {})", email, config.request_type);
 
         // 5. 包装请求 (project injection)
         let wrapped_body = wrap_request(&body, &project_id, &mapped_model);
@@ -89,7 +89,7 @@ pub async fn handle_generate(
                 Ok(r) => r,
                 Err(e) => {
                     last_error = e.clone();
-                    tracing::warn!("Gemini Request failed on attempt {}/{}: {}", attempt + 1, max_attempts, e);
+                    debug!("Gemini Request failed on attempt {}/{}: {}", attempt + 1, max_attempts, e);
                     continue;
                 }
             };
@@ -219,7 +219,7 @@ pub async fn handle_list_models(State(state): State<AppState>) -> Result<impl In
     // Transform map to Gemini list format
     let mut models = Vec::new();
     if let Some(obj) = upstream_models.as_object() {
-        tracing::info!("Upstream models keys: {:?}", obj.keys());
+        debug!("Upstream models keys: {:?}", obj.keys());
         for (key, value) in obj {
              let description = value.get("description").and_then(|v| v.as_str()).unwrap_or("");
              let display_name = value.get("displayName").and_then(|v| v.as_str()).unwrap_or(key);

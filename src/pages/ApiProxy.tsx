@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 import { AppConfig, ProxyConfig, StickySessionConfig } from '../types/config';
 import HelpTooltip from '../components/common/HelpTooltip';
+import ModalDialog from '../components/common/ModalDialog';
+import { showToast } from '../components/common/ToastContainer';
 
 interface ProxyStatus {
     running: boolean;
@@ -219,6 +221,11 @@ export default function ApiProxy() {
     const [zaiNewMappingFrom, setZaiNewMappingFrom] = useState('');
     const [zaiNewMappingTo, setZaiNewMappingTo] = useState('');
 
+    // Modal states
+    const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+    const [isRegenerateKeyConfirmOpen, setIsRegenerateKeyConfirmOpen] = useState(false);
+    const [isClearBindingsConfirmOpen, setIsClearBindingsConfirmOpen] = useState(false);
+
     const zaiModelOptions = useMemo(() => {
         const unique = new Set(zaiAvailableModels);
         return Array.from(unique).sort();
@@ -260,7 +267,7 @@ export default function ApiProxy() {
             setAppConfig(newConfig);
         } catch (error) {
             console.error('保存配置失败:', error);
-            alert('保存配置失败: ' + error);
+            showToast(`${t('common.error')}: ${error}`, 'error');
         }
     };
 
@@ -285,8 +292,14 @@ export default function ApiProxy() {
         }
     };
 
-    const handleResetMapping = async () => {
-        if (!appConfig || !confirm('确定要重置所有模型映射为系统默认吗？')) return;
+    const handleResetMapping = () => {
+        if (!appConfig) return;
+        setIsResetConfirmOpen(true);
+    };
+
+    const executeResetMapping = async () => {
+        if (!appConfig) return;
+        setIsResetConfirmOpen(false);
 
         const newConfig = {
             ...appConfig.proxy,
@@ -298,8 +311,10 @@ export default function ApiProxy() {
         try {
             await invoke('update_model_mapping', { config: newConfig });
             setAppConfig({ ...appConfig, proxy: newConfig });
+            showToast(t('common.success'), 'success');
         } catch (error) {
             console.error('Failed to reset mapping:', error);
+            showToast(`${t('common.error')}: ${error}`, 'error');
         }
     };
 
@@ -360,13 +375,18 @@ export default function ApiProxy() {
         saveConfig(newAppConfig);
     };
 
-    const handleClearSessionBindings = async () => {
+    const handleClearSessionBindings = () => {
+        setIsClearBindingsConfirmOpen(true);
+    };
+
+    const executeClearSessionBindings = async () => {
+        setIsClearBindingsConfirmOpen(false);
         try {
             await invoke('clear_proxy_session_bindings');
-            alert(t('common.success'));
+            showToast(t('common.success'), 'success');
         } catch (error) {
             console.error('Failed to clear session bindings:', error);
-            alert('Error: ' + error);
+            showToast(`${t('common.error')}: ${error}`, 'error');
         }
     };
 
@@ -468,21 +488,25 @@ export default function ApiProxy() {
             }
             await loadStatus();
         } catch (error: any) {
-            alert(t('proxy.dialog.operate_failed', { error }));
+            showToast(t('proxy.dialog.operate_failed', { error: error.toString() }), 'error');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleGenerateApiKey = async () => {
-        if (confirm(t('proxy.dialog.confirm_regenerate'))) {
-            try {
-                const newKey = await invoke<string>('generate_api_key');
-                updateProxyConfig({ api_key: newKey });
-            } catch (error) {
-                console.error('生成 API Key 失败:', error);
-                alert(t('proxy.dialog.operate_failed', { error }));
-            }
+    const handleGenerateApiKey = () => {
+        setIsRegenerateKeyConfirmOpen(true);
+    };
+
+    const executeGenerateApiKey = async () => {
+        setIsRegenerateKeyConfirmOpen(false);
+        try {
+            const newKey = await invoke<string>('generate_api_key');
+            updateProxyConfig({ api_key: newKey });
+            showToast(t('common.success'), 'success');
+        } catch (error: any) {
+            console.error('生成 API Key 失败:', error);
+            showToast(t('proxy.dialog.operate_failed', { error: error.toString() }), 'error');
         }
     };
 
@@ -651,7 +675,7 @@ print(response.text)`;
                                             <HelpTooltip
                                                 text={t('proxy.config.port_tooltip')}
                                                 ariaLabel={t('proxy.config.port')}
-                                                placement="top"
+                                                placement="right"
                                             />
                                         </span>
                                     </label>
@@ -709,7 +733,7 @@ print(response.text)`;
                                             <HelpTooltip
                                                 text={t('proxy.config.auto_start_tooltip')}
                                                 ariaLabel={t('proxy.config.auto_start')}
-                                                placement="top"
+                                                placement="right"
                                             />
                                         </span>
                                     </label>
@@ -728,7 +752,7 @@ print(response.text)`;
                                                 <HelpTooltip
                                                     text={t('proxy.config.allow_lan_access_tooltip')}
                                                     ariaLabel={t('proxy.config.allow_lan_access')}
-                                                    placement="top"
+                                                    placement="right"
                                                 />
                                             </span>
                                             <input
@@ -830,7 +854,7 @@ print(response.text)`;
                                         <HelpTooltip
                                             text={t('proxy.config.api_key_tooltip')}
                                             ariaLabel={t('proxy.config.api_key')}
-                                            placement="top"
+                                            placement="right"
                                         />
                                     </span>
                                 </label>
@@ -1117,7 +1141,10 @@ print(response.text)`;
                                             <div className="flex items-center justify-between">
                                                 <label className="text-xs font-medium text-gray-700 dark:text-gray-300 inline-flex items-center gap-1">
                                                     {t('proxy.config.scheduling.mode')}
-                                                    <HelpTooltip text={t('proxy.config.scheduling.mode_tooltip')} />
+                                                    <HelpTooltip
+                                                        text={t('proxy.config.scheduling.mode_tooltip')}
+                                                        placement="right"
+                                                    />
                                                 </label>
                                                 <button
                                                     onClick={handleClearSessionBindings}
@@ -1670,6 +1697,36 @@ print(response.text)`;
                         </div>
                     )
                 }
+                {/* 各种对话框 */}
+                <ModalDialog
+                    isOpen={isResetConfirmOpen}
+                    title={t('proxy.dialog.reset_mapping_title') || '重置映射'}
+                    message={t('proxy.dialog.reset_mapping_msg') || '确定要重置所有模型映射为系统默认吗？'}
+                    type="confirm"
+                    isDestructive={true}
+                    onConfirm={executeResetMapping}
+                    onCancel={() => setIsResetConfirmOpen(false)}
+                />
+
+                <ModalDialog
+                    isOpen={isRegenerateKeyConfirmOpen}
+                    title={t('proxy.dialog.regenerate_key_title') || t('proxy.dialog.confirm_regenerate')}
+                    message={t('proxy.dialog.regenerate_key_msg') || t('proxy.dialog.confirm_regenerate')}
+                    type="confirm"
+                    isDestructive={true}
+                    onConfirm={executeGenerateApiKey}
+                    onCancel={() => setIsRegenerateKeyConfirmOpen(false)}
+                />
+
+                <ModalDialog
+                    isOpen={isClearBindingsConfirmOpen}
+                    title={t('proxy.dialog.clear_bindings_title') || '清除会话绑定'}
+                    message={t('proxy.dialog.clear_bindings_msg') || '确定要清除所有会话与账号的绑定映射吗？'}
+                    type="confirm"
+                    isDestructive={true}
+                    onConfirm={executeClearSessionBindings}
+                    onCancel={() => setIsClearBindingsConfirmOpen(false)}
+                />
             </div >
         </div>
     );
