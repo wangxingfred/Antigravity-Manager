@@ -262,7 +262,7 @@ impl TokenManager {
             .unwrap_or("");
         
         if is_proxy_disabled {
-            if reason.contains("quota_protection") {
+            if reason == "quota_protection" {
                 // [兼容性 #621] 如果是被旧版账号级保护禁用的，尝试恢复并转为模型级
                 return self.check_and_restore_quota(account_json, account_path, quota, &config).await;
             }

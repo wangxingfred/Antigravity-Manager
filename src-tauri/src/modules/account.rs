@@ -667,7 +667,7 @@ pub fn update_account_quota(account_id: &str, quota: QuotaData) -> Result<(), St
 
                 // [兼容性] 如果该账号之前是因为账号级配额保护被禁用的，现在迁移到模型级
                 if account.proxy_disabled && 
-                   account.proxy_disabled_reason.as_ref().map_or(false, |r| r.contains("quota_protection")) {
+                   account.proxy_disabled_reason.as_ref().map_or(false, |r| r == "quota_protection") {
                     crate::modules::logger::log_info(&format!(
                         "[Quota] 迁移账号 {} 从账号级保护到模型级保护",
                         account.email
